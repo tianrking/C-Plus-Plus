@@ -5,10 +5,10 @@ on:
 permissions:
   contents: read
 env:
-  SOURCE_SHA: ad7446c015c69a8bea9e75eabef5f53809bb4e99
+  SOURCE_SHA: ffdcd76e468e9852eb038a4acca5937ba2578f1d
 jobs:
   native-green:
-    if: false
+    if: true
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -75,6 +75,7 @@ jobs:
           name: bidijkstra-linter-source
           path: graph/bidirectional_dijkstra.cpp
   original-lint-comparison:
+    if: false
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
