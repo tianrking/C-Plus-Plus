@@ -5,7 +5,7 @@ on:
 permissions:
   contents: read
 env:
-  SOURCE_SHA: ffdcd76e468e9852eb038a4acca5937ba2578f1d
+  SOURCE_SHA: 77ff08d0ce609b19672aa6534752814f68a06661
 jobs:
   native-green:
     if: true
