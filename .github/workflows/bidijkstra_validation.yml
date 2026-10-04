@@ -1,0 +1,27 @@
+name: Isolated bidirectional Dijkstra validation
+on:
+  push:
+    branches: [codex/validation-bidijkstra-red]
+permissions:
+  contents: read
+jobs:
+  native-red:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Record immutable source and native toolchain
+        run: |
+          git rev-parse HEAD
+          git hash-object graph/bidirectional_dijkstra.cpp
+          uname -m
+          c++ --version
+          cmake --version
+      - name: Configure and compile original algorithm
+        run: |
+          cmake -B build -S . -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          cmake --build build --target bidirectional_dijkstra --parallel 2
+      - name: Exercise real executable with bounded legal inputs
+        run: python3 .github/bidijkstra_native_cases.py build/graph/bidirectional_dijkstra
