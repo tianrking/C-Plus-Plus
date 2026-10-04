@@ -4,24 +4,71 @@ on:
     branches: [codex/validation-bidijkstra-red]
 permissions:
   contents: read
+env:
+  SOURCE_SHA: ad7446c015c69a8bea9e75eabef5f53809bb4e99
 jobs:
-  native-red:
+  native-green:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          path: source
+          persist-credentials: false
       - name: Record immutable source and native toolchain
+        working-directory: source
         run: |
           git rev-parse HEAD
           git hash-object graph/bidirectional_dijkstra.cpp
           uname -m
           c++ --version
           cmake --version
-      - name: Configure and compile original algorithm
+      - name: Configure and compile fixed algorithm
+        working-directory: source
         run: |
           cmake -B build -S . -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
           cmake --build build --target bidirectional_dijkstra --parallel 2
       - name: Exercise real executable with bounded legal inputs
-        run: python3 .github/bidijkstra_native_cases.py build/graph/bidirectional_dijkstra
+        run: python3 .github/bidijkstra_native_cases.py source/build/graph/bidirectional_dijkstra
+      - name: Complete repository CMake build
+        working-directory: source
+        run: cmake --build build --parallel 2
+      - name: Address and undefined behavior sanitizers
+        working-directory: source
+        run: |
+          c++ -std=c++17 -g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer graph/bidirectional_dijkstra.cpp -o bidijkstra_sanitized
+          printf '1\n0\n1 1\n' | timeout 30 ./bidijkstra_sanitized
+  scope-style:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - name: Install native analysis tools
+        run: |
+          sudo apt-get -qq update
+          sudo apt-get -qq install clang-format clang-tidy
+          clang-format --version
+          clang-tidy --version
+      - name: Run repository scoped linter
+        run: |
+          cmake -B build -S . -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          printf '%s\n' graph/bidirectional_dijkstra.cpp > git_diff.txt
+          python3 scripts/file_linter.py
+      - name: Record linter changes
+        if: always()
+        run: |
+          git rev-parse HEAD
+          git diff -- graph/bidirectional_dijkstra.cpp
+          git diff --exit-code -- graph/bidirectional_dijkstra.cpp
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bidijkstra-linter-source
+          path: graph/bidirectional_dijkstra.cpp
